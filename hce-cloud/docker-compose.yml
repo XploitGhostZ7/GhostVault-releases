@@ -1,0 +1,15 @@
+# By Kompilador
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/bootstrap.sql:/docker-entrypoint-initdb.d/01-bootstrap.sql:ro
+      - ./db/dev-database.sql:/docker-entrypoint-initdb.d/02-database.sql:ro
+      - hce-data:/var/lib/postgresql/data
+volumes:
+  hce-data:
