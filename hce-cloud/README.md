@@ -38,6 +38,53 @@ Paciente (consentimiento) → Horario → Cita → Admisión (datos RIPS)
   → FHIR $everything · Auditoría
 ```
 
+## Frontend (`web/`)
+
+Next.js 16 (App Router) configurado como **BFF**. El JWT vive en una cookie `httpOnly`, `SameSite=Strict` y `Secure` (en producción): JavaScript del navegador nunca lo ve.
+
+- `app/api/session`: login y logout. Recibe el token de la API y lo guarda en la cookie.
+- `app/api/[...path]`: proxy same-origin hacia la API. Hace tres cosas:
+  - Exige el encabezado `x-hce-request` en métodos que modifican datos (anti-CSRF).
+  - Renueva el token cuando le quedan menos de 10 minutos.
+  - Bloquea `/auth/login` directo.
+- CSP estricta (`connect-src 'self'`, `frame-ancestors 'none'`), HSTS, `no-referrer` y `Permissions-Policy`.
+- Navegación por rol:
+  - Médico: bandeja de atención.
+  - Recepción: agenda y admisión.
+  - Facturación: FEV y RIPS.
+  - Auditor y admin: auditoría.
+  - Admin: usuarios y horarios.
+  - Si el prestador exige MFA, no hay acceso hasta enrolarlo, con QR TOTP.
+- Editor de historia generado desde la plantilla de la API, firma con PIN en un modal, notas aclaratorias, verificación de firma, PDF, fórmula y órdenes, y exportación FHIR.
+
+```bash
+cd web
+npm ci
+API_URL=http://localhost:3001 npm run dev        # producción: npm run build && npm start
+```
+
+Variables: `API_URL` (URL interna de la API) y `SESSION_COOKIE_SECURE` (`false` solo para pruebas locales por HTTP).
+
+**Despliegue:** la API debe recibir la IP real del cliente. Configure `TRUST_PROXY` con el número de saltos de proxy delante de la API: balanceador + BFF = 2. Sin ese dato, el rate limit y la auditoría ven la IP del BFF.
+
+### Prueba de punta a punta
+
+`web/e2e/flujo.cjs` usa Playwright con Chromium y recorre el flujo completo con MFA obligatorio:
+
+1. Enrolamiento MFA de cada usuario.
+2. Creación de usuarios y horarios.
+3. Paciente con autorización Ley 1581, cita, admisión con datos RIPS.
+4. Llave de firma; diligenciamiento de la historia; PIN incorrecto rechazado sin cerrar la sesión; firma; fórmula firmada; nota aclaratoria; verificación de firma.
+5. PDF y exportación FHIR.
+6. Factura, emisión, RIPS validado y descarga.
+7. Verificación de la cadena de auditoría.
+8. Controles: el administrador no lee contenido clínico y una petición sin encabezado anti-CSRF es rechazada.
+
+```bash
+# API con MFA_REQUIRED=true en :3001, web en :3000, tenant ips-demo recién creado
+E2E_SHOTS=./capturas node e2e/flujo.cjs
+```
+
 ## Endpoints
 
 | Módulo | Endpoints |
@@ -81,7 +128,6 @@ La suite cubre el flujo completo de punta a punta, el aislamiento entre tenants,
 
 ## Pendiente antes de producción
 
-- Frontend web: agenda, editor de plantillas y bandeja del médico.
 - Catálogos oficiales: CIE-10, CUPS, CUM, DIVIPOLA y tablas de referencia RIPS de SISPRO. Hoy solo se valida el **formato**; los códigos sugeridos por plantilla (`codServicio`, CUPS) y los valores de finalidad y causa deben confirmarse contra las tablas vigentes.
 - RIPS de procedimientos, medicamentos y otros servicios. El MVP genera solo **consultas**.
 - Perfiles de la guía IHCE de MinSalud: los sistemas de identificadores están centralizados en `SYS` (`src/modules/fhir/mapper.ts`).

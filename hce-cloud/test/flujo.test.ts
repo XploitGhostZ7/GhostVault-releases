@@ -65,7 +65,7 @@ describe('flujo completo de la atención', () => {
   });
 
   it('registra la llave de firma del médico', async () => {
-    expect((await medico.post('/users/me/signing-key', { password: 'mala', pin: PIN })).status).toBe(401);
+    expect((await medico.post('/users/me/signing-key', { password: 'mala', pin: PIN })).status).toBe(403);
     const k = ok(await medico.post('/users/me/signing-key', { password: PASSWORD, pin: PIN }), 201);
     expect(k.fingerprint).toMatch(/^[0-9a-f]{64}$/);
     expect((await recepcion.post('/users/me/signing-key', { password: PASSWORD, pin: PIN })).status).toBe(403);
@@ -149,7 +149,7 @@ describe('flujo completo de la atención', () => {
         causa_externa: '38',
       }),
     );
-    expect((await medico.post(`/encounters/${historiaId}/sign`, { pin: '000000' })).status).toBe(401);
+    expect((await medico.post(`/encounters/${historiaId}/sign`, { pin: '000000' })).status).toBe(403);
     const firmada = ok(await medico.post(`/encounters/${historiaId}/sign`, { pin: PIN }));
     expect(firmada.estado).toBe('firmado');
     expect(firmada.diagnostico_principal).toBe('J039');

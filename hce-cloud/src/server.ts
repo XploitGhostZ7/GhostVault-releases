@@ -5,7 +5,7 @@ import { createPool } from './db.js';
 import { crearProveedorFEV, crearValidadorRips } from './modules/billing/providers.js';
 
 const config = loadConfig();
-const pool = createPool(config.DATABASE_URL);
+const pool = createPool(config.DATABASE_URL, (err) => console.error(`Conexión inactiva a PostgreSQL perdida: ${err.message}`));
 const app = await buildApp(
   { config, pool, fev: crearProveedorFEV(config.FEV_PROVIDER), ripsValidator: crearValidadorRips(config.RIPS_VALIDATOR) },
   { logger: true },

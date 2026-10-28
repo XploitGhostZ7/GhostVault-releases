@@ -74,7 +74,7 @@ export async function signHash(
     const firma = await signWithPin(key.encrypted_private_key, pin, app.ctx.config.APP_ENCRYPTION_KEY, userId, hash);
     return { firma, signing_key_id: key.id };
   } catch (e) {
-    if (e instanceof InvalidPinError) throw new HttpError(401, 'PIN de firma incorrecto');
+    if (e instanceof InvalidPinError) throw new HttpError(403, 'PIN de firma incorrecto');
     throw e;
   }
 }

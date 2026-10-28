@@ -10,7 +10,7 @@ import {
   encryptWithMasterKey,
   verifyPassword,
 } from '../../lib/crypto.js';
-import { HttpError, conflict, unauthorized } from '../../lib/errors.js';
+import { HttpError, conflict, forbidden, unauthorized } from '../../lib/errors.js';
 import { generateTotpSecret, otpauthUri, verifyTotp } from '../../lib/totp.js';
 
 const MAX_INTENTOS = 5;
@@ -152,7 +152,7 @@ export function registerAuthRoutes(app: FastifyInstance) {
            from users u join tenants t on t.id = u.tenant_id where u.id = $1`,
         [a.userId],
       );
-      return { ...u, mfaSesion: a.mfa };
+      return { ...u, mfaSesion: a.mfa, mfaRequerido: app.ctx.config.MFA_REQUIRED };
     });
   });
 
@@ -186,7 +186,7 @@ export function registerAuthRoutes(app: FastifyInstance) {
       );
       if (!u?.totp_secret || u.totp_enabled) throw conflict('No hay enrolamiento MFA pendiente');
       const secret = decryptWithMasterKey(app.ctx.config.APP_ENCRYPTION_KEY, u.totp_secret, `totp:${a.userId}`);
-      if (!verifyTotp(secret, code)) throw unauthorized('Código MFA inválido');
+      if (!verifyTotp(secret, code)) throw forbidden('Código MFA inválido');
       await db.query('update users set totp_enabled = true where id = $1', [a.userId]);
       await audit(db, req, 'mfa_activado', 'usuario', a.userId);
     });

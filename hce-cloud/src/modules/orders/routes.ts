@@ -140,15 +140,13 @@ export function registerOrderRoutes(app: FastifyInstance) {
     const { id } = parse(idParams, req.params);
     const data = await tx(req, async (db) => {
       const order = await loadOrder(db, id);
-      const [tenant, patient, professional, encounter, key] = await Promise.all([
-        tenantInfo(db),
-        one(db, 'select * from patients where id = $1', [order.patient_id]),
-        one(db, 'select * from users where id = $1', [order.professional_id]),
-        one(db, 'select diagnostico_principal from encounters where id = $1', [order.encounter_id]),
-        order.signing_key_id
-          ? one(db, 'select fingerprint from signing_keys where id = $1', [order.signing_key_id])
-          : Promise.resolve(undefined),
-      ]);
+      const tenant = await tenantInfo(db);
+      const patient = await one(db, 'select * from patients where id = $1', [order.patient_id]);
+      const professional = await one(db, 'select * from users where id = $1', [order.professional_id]);
+      const encounter = await one(db, 'select diagnostico_principal from encounters where id = $1', [order.encounter_id]);
+      const key = order.signing_key_id
+        ? await one(db, 'select fingerprint from signing_keys where id = $1', [order.signing_key_id])
+        : undefined;
       await audit(db, req, 'imprimir', 'orden', id, order.patient_id);
       return {
         tenant,

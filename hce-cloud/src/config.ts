@@ -16,6 +16,7 @@ const schema = z.object({
   FEV_PROVIDER: z.enum(['sandbox']).default('sandbox'),
   RIPS_VALIDATOR: z.enum(['sandbox']).default('sandbox'),
   ACCESS_TOKEN_TTL: z.string().default('30m'),
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
 });
 
 export type Config = z.infer<typeof schema>;

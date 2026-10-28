@@ -62,7 +62,7 @@ describe('autenticación', () => {
 
     const { secret, otpauth } = ok(await sinMfa.post('/auth/mfa/enroll'));
     expect(otpauth).toContain('otpauth://totp/');
-    expect((await sinMfa.post('/auth/mfa/confirm', { code: '000000' })).status).toBe(401);
+    expect((await sinMfa.post('/auth/mfa/confirm', { code: '000000' })).status).toBe(403);
     const { token } = ok(await sinMfa.post('/auth/mfa/confirm', { code: totpAt(secret, Date.now()) }));
     ok(await client(app, token).get('/users'));
 

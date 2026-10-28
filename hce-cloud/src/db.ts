@@ -6,8 +6,10 @@ pg.types.setTypeParser(1082, (v) => v);
 
 export type Db = pg.PoolClient;
 
-export function createPool(connectionString: string): pg.Pool {
-  return new pg.Pool({ connectionString, max: 20, idleTimeoutMillis: 30000 });
+export function createPool(connectionString: string, onError: (err: Error) => void = () => undefined): pg.Pool {
+  const pool = new pg.Pool({ connectionString, max: 20, idleTimeoutMillis: 30000 });
+  pool.on('error', onError);
+  return pool;
 }
 
 export async function withTenant<T>(pool: pg.Pool, tenantId: string, fn: (db: Db) => Promise<T>): Promise<T> {

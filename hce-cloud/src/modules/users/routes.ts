@@ -119,7 +119,7 @@ export function registerUserRoutes(app: FastifyInstance) {
     );
     const result = await tx(req, async (db) => {
       const u = await one<{ password_hash: string }>(db, 'select password_hash from users where id = $1', [a.userId]);
-      if (!u || !(await verifyPassword(b.password, u.password_hash))) throw unauthorized('Contraseña incorrecta');
+      if (!u || !(await verifyPassword(b.password, u.password_hash))) throw forbidden('Contraseña incorrecta');
       const key = await generateSigningKey(b.pin, app.ctx.config.APP_ENCRYPTION_KEY, a.userId);
       await db.query('update signing_keys set revoked_at = now() where user_id = $1 and revoked_at is null', [a.userId]);
       const k = await one(

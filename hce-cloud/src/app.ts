@@ -32,7 +32,7 @@ export async function buildApp(ctx: AppContext, opts: { logger?: boolean } = {})
     logger: opts.logger
       ? { redact: ['req.headers.authorization', 'req.body.password', 'req.body.pin', 'req.body.totp'] }
       : false,
-    trustProxy: true,
+    trustProxy: (_addr: string, hop: number) => hop < ctx.config.TRUST_PROXY,
     bodyLimit: 2 * 1024 * 1024,
   });
   app.decorate('ctx', ctx);

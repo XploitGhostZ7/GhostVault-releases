@@ -97,7 +97,8 @@ export function registerAdmissionRoutes(app: FastifyInstance) {
         db,
         `select a.*, concat_ws(' ', p.primer_nombre, p.primer_apellido) as paciente,
                 p.tipo_documento, p.numero_documento, u.nombre as profesional,
-                e.id as encounter_id, e.estado as encounter_estado
+                e.id as encounter_id, e.estado as encounter_estado, e.plantilla,
+                exists (select 1 from invoice_items ii where ii.admission_id = a.id) as facturada
            from admissions a
            join patients p on p.id = a.patient_id
            join users u on u.id = a.professional_id

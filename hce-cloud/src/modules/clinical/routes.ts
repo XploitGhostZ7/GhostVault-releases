@@ -249,21 +249,19 @@ export function registerClinicalRoutes(app: FastifyInstance) {
       const encounter = await loadEncounter(db, id);
       const template = getTemplate(encounter.plantilla, encounter.plantilla_version);
       if (!template) throw notFound('Plantilla no encontrada');
-      const [tenant, patient, professional, key, addenda] = await Promise.all([
-        tenantInfo(db),
-        one(db, 'select * from patients where id = $1', [encounter.patient_id]),
-        one(db, 'select * from users where id = $1', [encounter.professional_id]),
-        encounter.signing_key_id
-          ? one(db, 'select fingerprint from signing_keys where id = $1', [encounter.signing_key_id])
-          : Promise.resolve(undefined),
-        many(
-          db,
-          `select a.*, u.nombre as autor_nombre, k.fingerprint from encounter_addenda a
-             join users u on u.id = a.autor_id join signing_keys k on k.id = a.signing_key_id
-            where a.encounter_id = $1 order by a.created_at`,
-          [id],
-        ),
-      ]);
+      const tenant = await tenantInfo(db);
+      const patient = await one(db, 'select * from patients where id = $1', [encounter.patient_id]);
+      const professional = await one(db, 'select * from users where id = $1', [encounter.professional_id]);
+      const key = encounter.signing_key_id
+        ? await one(db, 'select fingerprint from signing_keys where id = $1', [encounter.signing_key_id])
+        : undefined;
+      const addenda = await many(
+        db,
+        `select a.*, u.nombre as autor_nombre, k.fingerprint from encounter_addenda a
+           join users u on u.id = a.autor_id join signing_keys k on k.id = a.signing_key_id
+          where a.encounter_id = $1 order by a.created_at`,
+        [id],
+      );
       await audit(db, req, 'imprimir', 'historia_clinica', id, encounter.patient_id);
       return { tenant, patient, encounter, professional, template, fingerprint: key?.fingerprint ?? null, addenda };
     });
