@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { CatalogoInput, useDescripcion } from './catalogo';
 import { Alert, Field } from './ui';
 import { api, mensajeError } from '@/lib/api';
 
@@ -20,6 +21,7 @@ export function AdmisionForm({ cita, onAdmitida }: { cita: any; onAdmitida: () =
     grupo_servicios: '01',
   });
   const [error, setError] = useState('');
+  const descCups = useDescripcion('cups', d.cod_consulta);
   const set = (k: keyof typeof d) => (e: { target: { value: string } }) => setD({ ...d, [k]: e.target.value });
 
   useEffect(() => {
@@ -71,8 +73,14 @@ export function AdmisionForm({ cita, onAdmitida }: { cita: any; onAdmitida: () =
         <Field label="Código de servicio (REPS)">
           <input value={d.cod_servicio} onChange={set('cod_servicio')} pattern="[0-9]{3,4}" required />
         </Field>
-        <Field label="CUPS de la consulta">
-          <input value={d.cod_consulta} onChange={set('cod_consulta')} pattern="[0-9A-Za-z]{6}" required />
+        <Field label="CUPS de la consulta" hint={descCups ?? undefined}>
+          <CatalogoInput
+            tipo="cups"
+            value={d.cod_consulta}
+            onChange={(v) => setD({ ...d, cod_consulta: v })}
+            onElegir={(it) => setD({ ...d, cod_consulta: it.codigo })}
+            required
+          />
         </Field>
         <Field label="N.º de autorización">
           <input value={d.num_autorizacion} onChange={set('num_autorizacion')} />

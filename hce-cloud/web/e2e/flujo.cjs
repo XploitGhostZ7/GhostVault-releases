@@ -1,7 +1,8 @@
 // By Kompilador
 // Prueba de punta a punta del flujo clínico con MFA obligatorio.
 // Requiere la API (MFA_REQUIRED=true) y el frontend en marcha, y un tenant recién creado:
-//   slug ips-demo · admin@demo.co · ADMIN_PASSWORD (por defecto Admin-Segura-2026)
+//   slug ips-demo · admin@demo.co · ADMIN_PASSWORD (por defecto Admin-Segura-2026),
+// y los catálogos de test/fixtures cargados con npm run catalogo.
 const { chromium } = require('playwright');
 const crypto = require('crypto');
 
@@ -183,8 +184,12 @@ async function logout(page) {
   await page.getByLabel('Hallazgos por sistemas *').fill('Faringe eritematosa con exudado amigdalino');
   await page.getByLabel('Análisis *').fill('Faringoamigdalitis aguda probablemente bacteriana');
   await page.getByLabel('Plan de manejo *').fill('Antibiótico, analgésico y control en 72 horas');
-  await page.getByLabel(/Diagnóstico principal/).fill('J039');
-  await page.getByLabel(/Relacionados/).fill('I10');
+  await page.getByLabel(/Diagnóstico principal/).fill('amigdalitis');
+  await page.getByRole('option', { name: /J039/ }).click();
+  await page.getByText('Amigdalitis aguda, no especificada').waitFor();
+  await page.getByRole('combobox', { name: 'Diagnóstico relacionado' }).fill('hipertension');
+  await page.getByRole('option', { name: /I10X/ }).click();
+  await page.locator('.chip', { hasText: 'I10X' }).waitFor();
   await page.getByLabel(/Tipo de diagnóstico/).selectOption('01');
   await page.getByLabel(/Finalidad/).fill('15');
   await page.getByLabel(/Causa/).fill('38');
@@ -194,9 +199,10 @@ async function logout(page) {
 
   await page.getByRole('button', { name: '+ Nueva' }).click();
   const o = page.locator('dialog[open]');
-  await o.getByLabel('Nombre (DCI) *').fill('Amoxicilina');
-  await o.getByLabel('Concentración *').fill('500 mg');
-  await o.getByLabel('Forma farmacéutica *').fill('Cápsula');
+  await o.getByLabel(/Buscar en catálogo CUM/).fill('amoxicilina');
+  await o.getByRole('option', { name: /19943231-1/ }).click();
+  if ((await o.getByLabel('Nombre (DCI) *').inputValue()) !== 'AMOXICILINA') throw new Error('CUM no completó el nombre');
+  if ((await o.getByLabel('Concentración *').inputValue()) !== '500 mg') throw new Error('CUM no completó la concentración');
   await o.getByLabel('Dosis *').fill('1 cápsula');
   await o.getByLabel('Cada *').fill('8 horas');
   await o.getByLabel('Días *').fill('7');

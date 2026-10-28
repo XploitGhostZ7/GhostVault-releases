@@ -1,0 +1,5 @@
+Codigo,Nombre,Habilitado,Sexo
+890201,Consulta de primera vez por medicina general,SI,
+890301,Consulta de control o de seguimiento por medicina general,SI,
+902210,"Hemograma IV (hemoglobina, hematocrito, recuento de eritrocitos, índices eritrocitarios, leucograma, recuento de plaquetas, índices plaquetarios y morfología electrónica e histograma) automatizado",SI,
+892901,Toma no quirúrgica de muestra o tejido vaginal para estudio citológico,SI,M

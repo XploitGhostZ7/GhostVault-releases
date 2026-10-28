@@ -38,6 +38,39 @@ Paciente (consentimiento) → Horario → Cita → Admisión (datos RIPS)
   → FHIR $everything · Auditoría
 ```
 
+## Catálogos de referencia (CIE-10, CUPS, CUM)
+
+Son tablas globales (`cat_cie10`, `cat_cups`, `cat_cum`, más `cat_versiones`) que solo carga el rol dueño. La API las lee y no puede modificarlas.
+
+**Búsqueda:** `GET /catalogos/{cie10|cups|cum}?q=` es insensible a tildes y mayúsculas.
+- El orden de resultados es: código exacto, prefijo de código, todas las palabras presentes y similitud por trigramas (`pg_trgm`), que tolera errores de digitación.
+- `GET /catalogos/{tipo}/{codigo}` consulta un código puntual.
+- `GET /catalogos/estado` muestra la versión cargada de cada catálogo.
+
+**Validación** (activa solo cuando el catálogo correspondiente tiene registros):
+
+| Dónde | Regla |
+|---|---|
+| Admisión | El CUPS de la consulta existe, está habilitado y es compatible con el sexo del paciente |
+| Borrador de historia | El diagnóstico principal y los relacionados existen en CIE-10 |
+| Firma de historia | Lo anterior, más las restricciones de sexo y edad del código frente al paciente |
+| Órdenes | Los CUPS existen, están habilitados y son compatibles con el sexo del paciente; el CUM, si se indica, existe y está vigente |
+
+**Carga desde los archivos oficiales** (tablas de referencia de SISPRO para CIE-10 y CUPS; conjunto CUM de INVIMA en datos.gov.co):
+
+```bash
+MIGRATION_DATABASE_URL=... npm run catalogo -- --tipo cie10 --archivo CIE10.csv --version "SISPRO 2026-10" --fuente "SISPRO" --encoding latin1
+MIGRATION_DATABASE_URL=... npm run catalogo -- --tipo cups  --archivo CUPS.csv  --version "Res. vigente"
+MIGRATION_DATABASE_URL=... npm run catalogo -- --tipo cum   --archivo cum_vigentes.csv --version "INVIMA 2026-10"
+```
+
+- **Formato y columnas:** acepta CSV con `,`, `;`, tabulador o `|`, en UTF-8 o Latin-1. Las columnas se detectan por alias, por ejemplo `Codigo`/`Nombre`/`Habilitado`/`AplicaASexo`/`EdadMinima` o `expediente`/`consecutivocum`/`principioactivo`/`estadocum`. Un archivo con otros encabezados se mapea con `--map campo=Columna`. El comando imprime qué columna usó para cada campo: **revíselo en la primera carga de cada fuente.**
+- **CUM:** el código se forma como `expediente-consecutivo`. Los productos con varios principios activos se agrupan (`ACETAMINOFÉN + CAFEÍNA`), y la concentración se arma con `cantidad` y `unidadmedida`.
+- **Recarga y rechazos:** cada carga reemplaza el catálogo completo dentro de una transacción y registra versión, fuente, cantidad de registros y SHA-256 del archivo. Si más del 1 % de las filas son inválidas, la carga se aborta y se listan las filas rechazadas.
+- **Formato de los códigos CIE-10:** van sin punto y con relleno a 4 caracteres como en SISPRO (`I10X`, no `I10`). El buscador encuentra `I10X` al escribir `I10`.
+
+`test/fixtures/` contiene archivos ilustrativos solo para pruebas; no son los catálogos oficiales.
+
 ## Frontend (`web/`)
 
 Next.js 16 (App Router) configurado como **BFF**. El JWT vive en una cookie `httpOnly`, `SameSite=Strict` y `Secure` (en producción): JavaScript del navegador nunca lo ve.
@@ -99,6 +132,7 @@ E2E_SHOTS=./capturas node e2e/flujo.cjs
 | Facturación | `POST /billing/rips/preview` · `POST/GET /billing/invoices` · `GET /billing/invoices/:id` · `POST /billing/invoices/:id/emitir` · `GET /billing/invoices/:id/rips` |
 | Auditoría | `GET /audit` · `GET /audit/verify` |
 | FHIR R4 | `GET /fhir/metadata` · `GET /fhir/Patient/:id` · `GET /fhir/Patient/:id/$everything` |
+| Catálogos | `GET /catalogos/estado` · `GET /catalogos/{cie10,cups,cum}?q=` · `GET /catalogos/{tipo}/:codigo` |
 
 ## Puesta en marcha
 
@@ -128,7 +162,8 @@ La suite cubre el flujo completo de punta a punta, el aislamiento entre tenants,
 
 ## Pendiente antes de producción
 
-- Catálogos oficiales: CIE-10, CUPS, CUM, DIVIPOLA y tablas de referencia RIPS de SISPRO. Hoy solo se valida el **formato**; los códigos sugeridos por plantilla (`codServicio`, CUPS) y los valores de finalidad y causa deben confirmarse contra las tablas vigentes.
+- Cargar los archivos oficiales de CIE-10, CUPS y CUM con `npm run catalogo` y verificar el mapeo de columnas.
+- Catálogos aún sin importador: DIVIPOLA y las tablas de referencia RIPS (finalidad, causa, modalidad, concepto de recaudo). Los códigos sugeridos por plantilla y esos valores deben confirmarse contra las tablas vigentes.
 - RIPS de procedimientos, medicamentos y otros servicios. El MVP genera solo **consultas**.
 - Perfiles de la guía IHCE de MinSalud: los sistemas de identificadores están centralizados en `SYS` (`src/modules/fhir/mapper.ts`).
 - `APP_ENCRYPTION_KEY` en KMS, cifrado de disco, backups con retención de 15 años (Res. 839/2017) y Object Lock.

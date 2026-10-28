@@ -1,0 +1,9 @@
+﻿Codigo;Nombre;Habilitado;AplicaASexo;EdadMinima;EdadMaxima
+J03.9;"Amigdalitis aguda, no especificada";SI;A;0;150
+J029;Faringitis aguda, no especificada;SI;;;
+I10X;Hipertensión esencial (primaria);SI;;;
+E119;Diabetes mellitus no insulinodependiente sin mención de complicación;SI;;;
+N40X;Hiperplasia de la próstata;SI;H;18;150
+O800;Parto único espontáneo, presentación cefálica de vértice;SI;M;10;60
+J00X;Rinofaringitis aguda [resfriado común];NO;;;
+XX;Fila inválida de prueba;SI;;;

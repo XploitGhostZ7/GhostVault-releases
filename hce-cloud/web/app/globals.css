@@ -156,3 +156,15 @@ td.acciones .btn + .btn { margin-left: 0.35rem; }
   .sidebar, .page-actions, .btn { display: none !important; }
   .shell { display: block; }
 }
+
+/* Autocompletado de catálogos */
+.ac { position: relative; }
+.ac-list { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 0.25rem 0; list-style: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 10px 25px rgba(16, 24, 40, 0.15); max-height: 280px; overflow-y: auto; min-width: 320px; }
+.ac-list li { display: flex; gap: 0.6rem; padding: 0.45rem 0.7rem; cursor: pointer; font-size: 0.87rem; line-height: 1.3; }
+.ac-list li.activo { background: var(--primary-soft); }
+.ac-codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+.chip { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--primary-soft); color: var(--primary); border-radius: 999px; padding: 0.2rem 0.3rem 0.2rem 0.65rem; font-size: 0.82rem; font-weight: 600; max-width: 100%; }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip button { border: none; background: transparent; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.2rem; }
+.desc-codigo { font-size: 0.8rem; color: var(--muted); }

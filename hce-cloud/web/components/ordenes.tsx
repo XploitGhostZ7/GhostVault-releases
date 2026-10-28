@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { CatalogoInput } from './catalogo';
 import { Alert, Estado, Field, Modal, Vacio } from './ui';
 import { api, mensajeError } from '@/lib/api';
 
@@ -27,6 +28,22 @@ function NuevaOrden({ encounterId, onCreada }: { encounterId: string; onCreada: 
   const [error, setError] = useState('');
 
   const setMed = (i: number, k: keyof Med, v: string) => setMeds(meds.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const [busquedaCum, setBusquedaCum] = useState<string[]>(['']);
+  const elegirCum = (i: number, it: any) =>
+    setMeds(
+      meds.map((m, j) =>
+        j === i
+          ? {
+              ...m,
+              cum: it.codigo,
+              nombre: it.principio_activo,
+              concentracion: it.concentracion ?? m.concentracion,
+              forma_farmaceutica: it.forma_farmaceutica ?? m.forma_farmaceutica,
+              via: it.via ?? m.via,
+            }
+          : m,
+      ),
+    );
   const setServ = (i: number, k: keyof Serv, v: string) => setServs(servs.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
 
   async function guardar(ev: FormEvent) {
@@ -62,6 +79,18 @@ function NuevaOrden({ encounterId, onCreada }: { encounterId: string; onCreada: 
             <fieldset key={i}>
               <legend>Medicamento {i + 1}</legend>
               <div className="form-grid">
+                <Field label="Buscar en catálogo CUM" hint="Principio activo, producto o código; completa los campos" wide>
+                  <CatalogoInput
+                    tipo="cum"
+                    value={busquedaCum[i] ?? ''}
+                    onChange={(v) => setBusquedaCum(Object.assign([...busquedaCum], { [i]: v }))}
+                    onElegir={(it) => {
+                      elegirCum(i, it);
+                      setBusquedaCum(Object.assign([...busquedaCum], { [i]: `${it.principio_activo} · ${it.producto}` }));
+                    }}
+                    placeholder="Ej.: amoxicilina"
+                  />
+                </Field>
                 <Field label="Nombre (DCI) *">
                   <input value={m.nombre} onChange={(e) => setMed(i, 'nombre', e.target.value)} required />
                 </Field>
@@ -103,9 +132,16 @@ function NuevaOrden({ encounterId, onCreada }: { encounterId: string; onCreada: 
               <legend>Servicio {i + 1}</legend>
               <div className="form-grid">
                 <Field label="CUPS *">
-                  <input value={s.cups} onChange={(e) => setServ(i, 'cups', e.target.value)} required pattern="[0-9A-Za-z]{6}" />
+                  <CatalogoInput
+                    tipo="cups"
+                    value={s.cups}
+                    onChange={(v) => setServ(i, 'cups', v)}
+                    onElegir={(it) => setServs(servs.map((x, j) => (j === i ? { ...x, cups: it.codigo, descripcion: it.descripcion } : x)))}
+                    required
+                    placeholder="Código o nombre"
+                  />
                 </Field>
-                <Field label="Descripción *">
+                <Field label="Descripción *" wide>
                   <input value={s.descripcion} onChange={(e) => setServ(i, 'descripcion', e.target.value)} required />
                 </Field>
                 <Field label="Cantidad">

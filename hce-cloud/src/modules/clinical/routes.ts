@@ -7,6 +7,7 @@ import { audit, auth, idParams, parse, requireRoles, tx, uuid } from '../../http
 import { hashCanonical } from '../../lib/canonical.js';
 import { badRequest, conflict, forbidden, notFound, orNotFound } from '../../lib/errors.js';
 import { renderHistoriaPdf } from '../../pdf/render.js';
+import { validarCie10 } from '../../catalogs/service.js';
 import { addendumPayload, encounterPayload, signHash, verifyStored } from './signing.js';
 import { TEMPLATES, contentSchema, getTemplate } from './templates.js';
 
@@ -86,6 +87,8 @@ export function registerClinicalRoutes(app: FastifyInstance) {
       if (e.estado !== 'borrador') throw conflict('La historia clínica ya fue firmada; use una nota aclaratoria');
       const t = getTemplate(e.plantilla, e.plantilla_version)!;
       const contenido = b.contenido === undefined ? undefined : parse(contentSchema(t, false), b.contenido);
+      const errDx = await validarCie10(db, [b.diagnostico_principal ?? '', ...(b.diagnosticos_relacionados ?? [])]);
+      if (errDx.length) throw badRequest('Diagnóstico no válido', errDx);
       const set = (v: unknown) => (v === undefined ? null : v);
       const row = await one(
         db,
@@ -133,6 +136,9 @@ export function registerClinicalRoutes(app: FastifyInstance) {
           (k) => !e[k],
         );
         if (faltantes.length) throw badRequest('Faltan datos obligatorios para firmar', faltantes);
+        const pac = await one(db, 'select sexo, fecha_nacimiento from patients where id = $1', [e.patient_id]);
+        const errDx = await validarCie10(db, [e.diagnostico_principal, ...e.diagnosticos_relacionados], pac);
+        if (errDx.length) throw badRequest('Diagnósticos incompatibles con el catálogo CIE-10', errDx);
 
         const firmadoAt = new Date();
         const hash = hashCanonical(encounterPayload({ ...e, firmado_at: firmadoAt }));

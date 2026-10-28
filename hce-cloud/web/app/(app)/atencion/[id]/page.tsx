@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { HistoriaEditor, HistoriaLectura, limpiarContenido, type Contenido, type Plantilla } from '@/components/historia';
+import { CatalogoInput, CodigosMultiples, useDescripcion } from '@/components/catalogo';
 import { Ordenes } from '@/components/ordenes';
 import { useMe } from '@/components/session';
 import { Alert, Badge, Encabezado, Estado, Field, Modal } from '@/components/ui';
@@ -12,7 +13,7 @@ import { api, fechaHora, mensajeError, nombrePaciente } from '@/lib/api';
 
 type Dx = {
   diagnostico_principal: string;
-  relacionados: string;
+  relacionados: string[];
   tipo_diagnostico_principal: string;
   finalidad: string;
   causa_externa: string;
@@ -64,13 +65,14 @@ export default function HistoriaPage() {
   const [plantilla, setPlantilla] = useState<Plantilla | null>(null);
   const [paciente, setPaciente] = useState<any>(null);
   const [contenido, setContenido] = useState<Contenido>({});
-  const [dx, setDx] = useState<Dx>({ diagnostico_principal: '', relacionados: '', tipo_diagnostico_principal: '', finalidad: '', causa_externa: '' });
+  const [dx, setDx] = useState<Dx>({ diagnostico_principal: '', relacionados: [], tipo_diagnostico_principal: '', finalidad: '', causa_externa: '' });
   const [sucio, setSucio] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [firma, setFirma] = useState<{ titulo: string; accion: (pin: string) => Promise<void> } | null>(null);
   const [nota, setNota] = useState(false);
   const [verificacion, setVerificacion] = useState<any>(null);
+  const descPrincipal = useDescripcion('cie10', dx.diagnostico_principal);
 
   const cargar = useCallback(async () => {
     try {
@@ -82,7 +84,7 @@ export default function HistoriaPage() {
       setContenido(enc.contenido ?? {});
       setDx({
         diagnostico_principal: enc.diagnostico_principal ?? '',
-        relacionados: (enc.diagnosticos_relacionados ?? []).join(', '),
+        relacionados: enc.diagnosticos_relacionados ?? [],
         tipo_diagnostico_principal: enc.tipo_diagnostico_principal ?? '',
         finalidad: enc.finalidad ?? '',
         causa_externa: enc.causa_externa ?? '',
@@ -109,15 +111,11 @@ export default function HistoriaPage() {
 
   async function guardar(silencioso = false) {
     setError('');
-    const relacionados = dx.relacionados
-      .split(/[,\s]+/)
-      .map((c) => c.trim())
-      .filter(Boolean);
     const vacioANull = (v: string) => (v.trim() === '' ? null : v.trim());
     const r = await api.patch(`/encounters/${id}`, {
       contenido: limpiarContenido(contenido),
       diagnostico_principal: vacioANull(dx.diagnostico_principal),
-      diagnosticos_relacionados: relacionados,
+      diagnosticos_relacionados: dx.relacionados,
       tipo_diagnostico_principal: vacioANull(dx.tipo_diagnostico_principal),
       finalidad: vacioANull(dx.finalidad),
       causa_externa: vacioANull(dx.causa_externa),
@@ -162,7 +160,7 @@ export default function HistoriaPage() {
   if (error && !e) return <Alert>{error}</Alert>;
   if (!e || !plantilla || !paciente) return <p className="muted">Cargando…</p>;
 
-  const setD = (k: keyof Dx) => (ev: { target: { value: string } }) => {
+  const setD = (k: Exclude<keyof Dx, 'relacionados'>) => (ev: { target: { value: string } }) => {
     setDx({ ...dx, [k]: ev.target.value });
     setSucio(true);
   };
@@ -250,11 +248,36 @@ export default function HistoriaPage() {
             </div>
             <div className="stack">
               <Field label="Diagnóstico principal (CIE-10) *">
-                <input value={dx.diagnostico_principal} onChange={setD('diagnostico_principal')} disabled={!editable} placeholder="J039" />
+                <CatalogoInput
+                  tipo="cie10"
+                  value={dx.diagnostico_principal}
+                  onChange={(v) => {
+                    setDx({ ...dx, diagnostico_principal: v });
+                    setSucio(true);
+                  }}
+                  onElegir={(it) => {
+                    setDx({ ...dx, diagnostico_principal: it.codigo });
+                    setSucio(true);
+                  }}
+                  disabled={!editable}
+                  placeholder="Código o nombre del diagnóstico"
+                />
+                {descPrincipal && <span className="desc-codigo">{descPrincipal}</span>}
               </Field>
-              <Field label="Relacionados (máx. 3)" hint="Separados por coma">
-                <input value={dx.relacionados} onChange={setD('relacionados')} disabled={!editable} placeholder="I10, E119" />
-              </Field>
+              <div className="field">
+                <span className="field-label">Relacionados (máx. 3)</span>
+                <CodigosMultiples
+                  tipo="cie10"
+                  codigos={dx.relacionados}
+                  max={3}
+                  disabled={!editable}
+                  ariaLabel="Diagnóstico relacionado"
+                  onChange={(c) => {
+                    setDx({ ...dx, relacionados: c });
+                    setSucio(true);
+                  }}
+                />
+              </div>
               <Field label="Tipo de diagnóstico principal *">
                 <select value={dx.tipo_diagnostico_principal} onChange={setD('tipo_diagnostico_principal')} disabled={!editable}>
                   <option value="">—</option>

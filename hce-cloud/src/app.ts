@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppContext } from './http.js';
+import { registerCatalogRoutes } from './catalogs/routes.js';
 import { HttpError } from './lib/errors.js';
 import { registerAdmissionRoutes } from './modules/admissions/routes.js';
 import { registerAgendaRoutes } from './modules/agenda/routes.js';
@@ -84,6 +85,7 @@ export async function buildApp(ctx: AppContext, opts: { logger?: boolean } = {})
   registerBillingRoutes(app);
   registerAuditRoutes(app);
   registerFhirRoutes(app);
+  registerCatalogRoutes(app);
 
   return app;
 }

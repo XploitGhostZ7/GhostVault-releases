@@ -5,8 +5,9 @@ import { z } from 'zod';
 import { many, one, type Db } from '../../db.js';
 import { audit, auth, idParams, parse, requireRoles, tx } from '../../http.js';
 import { hashCanonical } from '../../lib/canonical.js';
-import { conflict, forbidden, orNotFound } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, orNotFound } from '../../lib/errors.js';
 import { renderOrdenPdf } from '../../pdf/render.js';
+import { validarCum, validarCups } from '../../catalogs/service.js';
 import { loadEncounter, tenantInfo } from '../clinical/routes.js';
 import { orderPayload, signHash, verifyStored } from '../clinical/signing.js';
 
@@ -42,6 +43,16 @@ function itemsSchema(t: z.infer<typeof tipo>) {
   return z.array(t === 'formula' ? medicamento : servicio).min(1).max(30);
 }
 
+async function validarItems(db: Db, t: string, items: any[], patientId: string) {
+  let errores: string[];
+  if (t === 'formula') errores = await validarCum(db, items.map((i) => i.cum));
+  else {
+    const pac = await one(db, 'select sexo, fecha_nacimiento from patients where id = $1', [patientId]);
+    errores = await validarCups(db, items.map((i) => i.cups), pac);
+  }
+  if (errores.length) throw badRequest('Ítems no válidos según catálogo', errores);
+}
+
 async function loadOrder(db: Db, id: string) {
   return orNotFound(await one(db, 'select * from clinical_orders where id = $1', [id]), 'Orden no encontrada');
 }
@@ -58,6 +69,7 @@ export function registerOrderRoutes(app: FastifyInstance) {
     const orden = await tx(req, async (db) => {
       const e = await loadEncounter(db, id);
       if (e.professional_id !== a.userId) throw forbidden('Solo el profesional tratante emite órdenes de esta atención');
+      await validarItems(db, b.tipo, items, e.patient_id);
       const row = await one(
         db,
         `insert into clinical_orders (id, encounter_id, patient_id, professional_id, tipo, items, observaciones)
@@ -87,7 +99,9 @@ export function registerOrderRoutes(app: FastifyInstance) {
       const o = await loadOrder(db, id);
       if (o.professional_id !== auth(req).userId) throw forbidden();
       if (o.estado !== 'borrador') throw conflict('La orden ya fue firmada');
-      const items = b.items === undefined ? null : JSON.stringify(parse(itemsSchema(o.tipo), b.items));
+      const nuevos = b.items === undefined ? undefined : parse(itemsSchema(o.tipo), b.items);
+      if (nuevos) await validarItems(db, o.tipo, nuevos, o.patient_id);
+      const items = nuevos === undefined ? null : JSON.stringify(nuevos);
       const row = await one(
         db,
         `update clinical_orders set items = coalesce($2, items),

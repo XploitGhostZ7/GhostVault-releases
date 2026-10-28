@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useMe } from '@/components/session';
 import { Alert, Badge, Encabezado, Field, Modal, Vacio } from '@/components/ui';
-import { api, mensajeError } from '@/lib/api';
+import { api, fechaHora, mensajeError } from '@/lib/api';
 
 const ROLES: Array<[string, string]> = [
   ['admin', 'Administrador'],
@@ -215,6 +215,54 @@ function Horarios({ medicos }: { medicos: any[] }) {
   );
 }
 
+const NOMBRES_CATALOGO: Record<string, string> = { cie10: 'CIE-10 (diagnósticos)', cups: 'CUPS (procedimientos)', cum: 'CUM (medicamentos)' };
+
+function Catalogos() {
+  const [estado, setEstado] = useState<any[] | null>(null);
+  useEffect(() => {
+    api.get<any[]>('/catalogos/estado').then(setEstado).catch(() => setEstado([]));
+  }, []);
+  const porTipo = new Map((estado ?? []).map((e) => [e.catalogo, e]));
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Catálogos de referencia</h2>
+      </div>
+      <p className="muted" style={{ marginBottom: '0.75rem' }}>
+        Se cargan con <span className="mono">npm run catalogo</span> desde los archivos oficiales de SISPRO e INVIMA. Mientras un catálogo no esté
+        cargado, solo se valida el formato de los códigos.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Catálogo</th>
+              <th>Versión</th>
+              <th>Fuente</th>
+              <th>Registros</th>
+              <th>Cargado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(NOMBRES_CATALOGO).map(([tipo, nombre]) => {
+              const e = porTipo.get(tipo);
+              return (
+                <tr key={tipo}>
+                  <td>{nombre}</td>
+                  <td>{e?.version ?? <Badge tono="warn">Sin cargar</Badge>}</td>
+                  <td>{e?.fuente ?? '—'}</td>
+                  <td>{e ? e.registros.toLocaleString('es-CO') : '—'}</td>
+                  <td>{e ? fechaHora(e.cargado_at) : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function UsuariosPage() {
   const me = useMe();
   const [usuarios, setUsuarios] = useState<any[]>([]);
@@ -309,6 +357,7 @@ export default function UsuariosPage() {
         </div>
       </section>
       <Horarios medicos={medicos} />
+      <Catalogos />
       <Modal titulo="Nuevo usuario" abierto={nuevo} onCerrar={() => setNuevo(false)}>
         <UsuarioForm
           onListo={() => {

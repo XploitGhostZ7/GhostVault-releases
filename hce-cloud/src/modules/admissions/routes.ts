@@ -5,6 +5,7 @@ import { many, one } from '../../db.js';
 import { audit, auth, idParams, parse, requireRoles, tx, uuid } from '../../http.js';
 import { badRequest, conflict, orNotFound } from '../../lib/errors.js';
 import { TZ, assertProfesional } from '../agenda/routes.js';
+import { validarCups } from '../../catalogs/service.js';
 
 const codigo2 = z.string().regex(/^\d{2}$/);
 
@@ -50,9 +51,11 @@ export function registerAdmissionRoutes(app: FastifyInstance) {
       }
       await assertProfesional(db, professionalId!);
       const pac = orNotFound(
-        await one(db, 'select tipo_usuario, consentimiento_datos_at from patients where id = $1', [patientId]),
+        await one(db, 'select tipo_usuario, consentimiento_datos_at, sexo, fecha_nacimiento from patients where id = $1', [patientId]),
         'Paciente no encontrado',
       );
+      const errCups = await validarCups(db, [b.cod_consulta], pac);
+      if (errCups.length) throw badRequest('Código de consulta no válido', errCups);
       if (!pac.consentimiento_datos_at) {
         throw conflict('El paciente no ha otorgado autorización de tratamiento de datos (Ley 1581 de 2012)');
       }
